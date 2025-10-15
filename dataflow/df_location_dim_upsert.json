@@ -43,27 +43,6 @@
 			"sinks": [
 				{
 					"dataset": {
-						"referenceName": "ds_sf_dw_location",
-						"type": "DatasetReference"
-					},
-					"name": "sink1"
-				},
-				{
-					"dataset": {
-						"referenceName": "ds_sf_stage_pet_raw",
-						"type": "DatasetReference"
-					},
-					"name": "sink2"
-				},
-				{
-					"dataset": {
-						"referenceName": "ds_sf_dw_fact",
-						"type": "DatasetReference"
-					},
-					"name": "sink3"
-				},
-				{
-					"dataset": {
 						"referenceName": "ds_sf_stage_pet_raw",
 						"type": "DatasetReference"
 					},
@@ -71,14 +50,14 @@
 				},
 				{
 					"dataset": {
-						"referenceName": "ds_sf_dw_breed",
+						"referenceName": "ds_sf_dw_location",
 						"type": "DatasetReference"
 					},
 					"name": "sink5"
 				},
 				{
 					"dataset": {
-						"referenceName": "ds_sf_stage_pet_raw",
+						"referenceName": "ds_sf_dw_fact",
 						"type": "DatasetReference"
 					},
 					"name": "sink6"
@@ -95,7 +74,13 @@
 					"name": "alterRow"
 				},
 				{
-					"name": "toInteger"
+					"name": "derivedcols"
+				},
+				{
+					"name": "derivefactcols"
+				},
+				{
+					"name": "BreedDim"
 				}
 			],
 			"scriptLines": [
@@ -173,61 +158,17 @@
 				"      upper(trim(SECONDARY_BREED))\r",
 				"    )\r",
 				"  )\r",
-				"),",
-				"          DATE_KEY = DATE_KEY) ~> toInteger",
-				" sink(allowSchemaDrift: true,",
-				"     validateSchema: false,",
-				"     input(",
-				"          LOCATION_DIM_KEY as decimal(38,0),",
-				"          ZIP_CODE as string,",
-				"          CITY_NAME as string,",
-				"          STATE_CODE as string,",
-				"          COUNTRY_CODE as string,",
-				"          NATURAL_KEY_HASH as string",
-				"     ),",
-				"     deletable:false,",
-				"     insertable:true,",
-				"     updateable:false,",
-				"     upsertable:false,",
-				"     format: 'table',",
-				"     skipDuplicateMapInputs: true,",
-				"     skipDuplicateMapOutputs: true) ~> sink1",
-				" sink(allowSchemaDrift: true,",
-				"     validateSchema: false,",
-				"     input(",
-				"          LICENSE_ISSUE_DATE as string,",
-				"          LICENSE_NUMBER as string,",
-				"          ANIMAL_NAME as string,",
-				"          SPECIES as string,",
-				"          PRIMARY_BREED as string,",
-				"          SECONDARY_BREED as string,",
-				"          ZIP_CODE as string",
-				"     ),",
-				"     deletable:false,",
-				"     insertable:true,",
-				"     updateable:false,",
-				"     upsertable:false,",
-				"     format: 'table',",
-				"     skipDuplicateMapInputs: true,",
-				"     skipDuplicateMapOutputs: true) ~> sink2",
-				" sink(allowSchemaDrift: true,",
-				"     validateSchema: false,",
-				"     input(",
-				"          LICENSE_FACT_KEY as decimal(38,0),",
-				"          DATE_KEY as decimal(8,0),",
-				"          LOCATION_DIM_KEY as decimal(38,0),",
-				"          BREED_DIM_KEY as decimal(38,0),",
-				"          LICENSE_ID as string,",
-				"          PET_NAME as string,",
-				"          CNT as decimal(38,0)",
-				"     ),",
-				"     deletable:false,",
-				"     insertable:true,",
-				"     updateable:false,",
-				"     upsertable:false,",
-				"     format: 'table',",
-				"     skipDuplicateMapInputs: true,",
-				"     skipDuplicateMapOutputs: true) ~> sink3",
+				")) ~> derivedcols",
+				"derivedcols, LOCATIONDIM join(derivedcols@ZIP_CODE == LOCATIONDIM@ZIP_CODE,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> derivefactcols",
+				"derivefactcols, DIMBREED join(BREED_HASH == DIMBREED@NATURAL_KEY_HASH,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> BreedDim",
 				"derivebreedkeys sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",
@@ -250,10 +191,11 @@
 				"alterRow sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",
-				"          BREED_DIM_KEY as decimal(38,0),",
-				"          SPECIES_NAME as string,",
-				"          PRIMARY_BREED as string,",
-				"          SECONDARY_BREED as string,",
+				"          LOCATION_DIM_KEY as decimal(38,0),",
+				"          ZIP_CODE as string,",
+				"          CITY_NAME as string,",
+				"          STATE_CODE as string,",
+				"          COUNTRY_CODE as string,",
 				"          NATURAL_KEY_HASH as string",
 				"     ),",
 				"     deletable:false,",
@@ -264,16 +206,16 @@
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
 				"     stageInsert: true) ~> sink5",
-				"toInteger sink(allowSchemaDrift: true,",
+				"BreedDim sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",
-				"          LICENSE_ISSUE_DATE as string,",
-				"          LICENSE_NUMBER as string,",
-				"          ANIMAL_NAME as string,",
-				"          SPECIES as string,",
-				"          PRIMARY_BREED as string,",
-				"          SECONDARY_BREED as string,",
-				"          ZIP_CODE as string",
+				"          LICENSE_FACT_KEY as decimal(38,0),",
+				"          DATE_KEY as decimal(8,0),",
+				"          LOCATION_DIM_KEY as decimal(38,0),",
+				"          BREED_DIM_KEY as decimal(38,0),",
+				"          LICENSE_ID as string,",
+				"          PET_NAME as string,",
+				"          CNT as decimal(38,0)",
 				"     ),",
 				"     deletable:false,",
 				"     insertable:true,",
