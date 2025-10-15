@@ -254,6 +254,155 @@ The system maintains three dimension tables with SCD Type 1 (overwrite) strategy
   - Foreign key relationships to all dimensions
   - Composite key: LICENSE_ID + DATE_KEY
 
+### 💻 **Actual Snowflake Script Implementation**
+
+<div align="center">
+
+```sql
+-- ================================
+-- ADF Script Activity: DW Loads
+-- ================================
+USE WAREHOUSE PET_WH;
+USE DATABASE PET_LICENSE_DB;
+
+-- =========================================
+-- 1) LOCATION_DIM upsert from STG_LOCATION_LKP
+-- =========================================
+MERGE INTO DW.LOCATION_DIM D
+USING (
+  SELECT
+    UPPER(TRIM(ZIP_CODE))                                        AS ZIP_N,
+    UPPER(TRIM(CITY_NAME))                                       AS CITY_N,
+    CASE WHEN STATE_CODE IS NULL OR TRIM(STATE_CODE) = ''
+         THEN 'WA' ELSE UPPER(TRIM(STATE_CODE)) END              AS STATE_N,
+    'USA'                                                        AS COUNTRY_N,
+    MD5(
+      UPPER(TRIM(ZIP_CODE)) || '|' ||
+      UPPER(TRIM(CITY_NAME)) || '|' ||
+      CASE WHEN STATE_CODE IS NULL OR TRIM(STATE_CODE) = ''
+           THEN 'WA' ELSE UPPER(TRIM(STATE_CODE)) END
+    )                                                            AS NK_HASH
+  FROM STAGE.STG_LOCATION_LKP
+  WHERE ZIP_CODE IS NOT NULL
+) S
+ON D.NATURAL_KEY_HASH = S.NK_HASH
+WHEN MATCHED THEN UPDATE SET
+  D.ZIP_CODE      = S.ZIP_N,
+  D.CITY_NAME     = S.CITY_N,
+  D.STATE_CODE    = S.STATE_N,
+  D.COUNTRY_CODE  = S.COUNTRY_N
+WHEN NOT MATCHED THEN INSERT
+  (ZIP_CODE, CITY_NAME, STATE_CODE, COUNTRY_CODE, NATURAL_KEY_HASH)
+VALUES
+  (S.ZIP_N, S.CITY_N, S.STATE_N, S.COUNTRY_N, S.NK_HASH);
+
+-- =========================================
+-- 2) BREED_DIM upsert from STG_PET_LICENSE
+-- =========================================
+MERGE INTO DW.BREED_DIM D
+USING (
+  SELECT
+    UPPER(TRIM(SPECIES))                                         AS SPEC_N,
+    UPPER(TRIM(PRIMARY_BREED))                                   AS PB_N,
+    CASE WHEN SECONDARY_BREED IS NULL OR TRIM(SECONDARY_BREED)=''
+         THEN 'UNKNOWN' ELSE UPPER(TRIM(SECONDARY_BREED)) END    AS SB_N,
+    MD5(
+      UPPER(TRIM(SPECIES)) || '|' ||
+      UPPER(TRIM(PRIMARY_BREED)) || '|' ||
+      CASE WHEN SECONDARY_BREED IS NULL OR TRIM(SECONDARY_BREED)=''
+           THEN 'UNKNOWN' ELSE UPPER(TRIM(SECONDARY_BREED)) END
+    )                                                            AS NK_HASH
+  FROM STAGE.STG_PET_LICENSE
+) S
+ON D.NATURAL_KEY_HASH = S.NK_HASH
+WHEN MATCHED THEN UPDATE SET
+  D.SPECIES_NAME    = S.SPEC_N,
+  D.PRIMARY_BREED   = S.PB_N,
+  D.SECONDARY_BREED = S.SB_N
+WHEN NOT MATCHED THEN INSERT
+  (SPECIES_NAME, PRIMARY_BREED, SECONDARY_BREED, NATURAL_KEY_HASH)
+VALUES
+  (S.SPEC_N, S.PB_N, S.SB_N, S.NK_HASH);
+
+-- =========================================
+-- 3) DATE_DIM upsert (derived from staged issue dates)
+-- =========================================
+MERGE INTO DW.DATE_DIM T
+USING (
+  SELECT
+    TO_NUMBER(TO_CHAR(D,'YYYYMMDD')) AS DATE_KEY,
+    D                                AS FULL_DATE,
+    YEAR(D)                          AS YEAR_NUM,
+    QUARTER(D)                       AS QUARTER_NUM,
+    MONTH(D)                         AS MONTH_NUM,
+    TO_CHAR(D,'Month')               AS MONTH_NAME,
+    DAY(D)                           AS DAY_NUM
+  FROM (
+    SELECT DISTINCT TO_DATE(LICENSE_ISSUE_DATE, 'MM/DD/YYYY') AS D
+    FROM STAGE.STG_PET_LICENSE
+    WHERE LICENSE_ISSUE_DATE IS NOT NULL
+  )
+) S
+ON T.DATE_KEY = S.DATE_KEY
+WHEN MATCHED THEN UPDATE SET
+  T.FULL_DATE   = S.FULL_DATE,
+  T.YEAR_NUM    = S.YEAR_NUM,
+  T.QUARTER_NUM = S.QUARTER_NUM,
+  T.MONTH_NUM   = S.MONTH_NUM,
+  T.MONTH_NAME  = S.MONTH_NAME,
+  T.DAY_NUM     = S.DAY_NUM
+WHEN NOT MATCHED THEN INSERT
+  (DATE_KEY, FULL_DATE, YEAR_NUM, QUARTER_NUM, MONTH_NUM, MONTH_NAME, DAY_NUM)
+VALUES
+  (S.DATE_KEY, S.FULL_DATE, S.YEAR_NUM, S.QUARTER_NUM, S.MONTH_NUM, S.MONTH_NAME, S.DAY_NUM);
+
+-- =========================================
+-- 4) FACT MERGE (idempotent on LICENSE_ID + DATE_KEY)
+-- =========================================
+MERGE INTO DW.PETLICENSE_FACT F
+USING (
+  SELECT
+    S.LICENSE_NUMBER,
+    S.ANIMAL_NAME,
+    S.DATE_KEY,
+    L2.LOCATION_DIM_KEY,
+    B.BREED_DIM_KEY,
+    S.CNT
+  FROM (
+    SELECT
+      LICENSE_NUMBER,
+      ANIMAL_NAME,
+      TO_NUMBER(TO_CHAR(TO_DATE(LICENSE_ISSUE_DATE,'MM/DD/YYYY'),'YYYYMMDD')) AS DATE_KEY,
+      UPPER(TRIM(ZIP_CODE))                                              AS ZIP_N,
+      MD5(
+        UPPER(TRIM(SPECIES)) || '|' ||
+        UPPER(TRIM(PRIMARY_BREED)) || '|' ||
+        CASE WHEN SECONDARY_BREED IS NULL OR TRIM(SECONDARY_BREED)=''
+             THEN 'UNKNOWN' ELSE UPPER(TRIM(SECONDARY_BREED)) END
+      )                                                                  AS BREED_HASH,
+      1                                                                  AS CNT
+    FROM STAGE.STG_PET_LICENSE
+  ) S
+  JOIN DW.LOCATION_DIM L2
+    ON S.ZIP_N = UPPER(TRIM(L2.ZIP_CODE))
+  JOIN DW.BREED_DIM B
+    ON S.BREED_HASH = B.NATURAL_KEY_HASH
+) S
+ON F.LICENSE_ID = S.LICENSE_NUMBER
+   AND F.DATE_KEY = S.DATE_KEY
+WHEN MATCHED THEN UPDATE SET
+  F.LOCATION_DIM_KEY = S.LOCATION_DIM_KEY,
+  F.BREED_DIM_KEY    = S.BREED_DIM_KEY,
+  F.PET_NAME         = S.ANIMAL_NAME,
+  F.CNT              = S.CNT
+WHEN NOT MATCHED THEN INSERT
+  (DATE_KEY, LOCATION_DIM_KEY, BREED_DIM_KEY, LICENSE_ID, PET_NAME, CNT)
+VALUES
+  (S.DATE_KEY, S.LOCATION_DIM_KEY, S.BREED_DIM_KEY, S.LICENSE_NUMBER, S.ANIMAL_NAME, S.CNT);
+```
+
+</div>
+
 ---
 
 ## 🛠️ Deployment & Configuration
