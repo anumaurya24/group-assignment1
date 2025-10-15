@@ -1,0 +1,84 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adf-petlicense-ananya"
+		},
+		"ls_snowflake_pet_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'ls_snowflake_pet'"
+		},
+		"kvpetlicenseananya_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://kvt-demodf.vault.azure.net/"
+		},
+		"ls_blob_pet_mi_sasUri": {
+			"type": "secureString",
+			"metadata": "Secure string for 'sasUri' of 'ls_blob_pet_mi'"
+		},
+		"ls_blob_team_pet_sasUri": {
+			"type": "secureString",
+			"metadata": "Secure string for 'sasUri' of 'ls_blob_team_pet'"
+		},
+		"ls_snowflake_pet_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "PET_LICENSE_DB"
+		},
+		"ls_snowflake_pet_properties_typeProperties_role": {
+			"type": "string",
+			"defaultValue": "DW_DEV_ROLE"
+		},
+		"containerUri": {
+			"type": "string",
+			"metadata": "URI to storage account containing linked ARM templates"
+		},
+		"containerSasToken": {
+			"type": "string",
+			"metadata": "Sas token to storage account containing linked ARM templates"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "adf-petlicense-ananya_ArmTemplate_0",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2024-03-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_0.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					},
+					"ls_snowflake_pet_password": {
+						"value": "[parameters('ls_snowflake_pet_password')]"
+					},
+					"kvpetlicenseananya_properties_typeProperties_baseUrl": {
+						"value": "[parameters('kvpetlicenseananya_properties_typeProperties_baseUrl')]"
+					},
+					"ls_blob_pet_mi_sasUri": {
+						"value": "[parameters('ls_blob_pet_mi_sasUri')]"
+					},
+					"ls_blob_team_pet_sasUri": {
+						"value": "[parameters('ls_blob_team_pet_sasUri')]"
+					},
+					"ls_snowflake_pet_properties_typeProperties_database": {
+						"value": "[parameters('ls_snowflake_pet_properties_typeProperties_database')]"
+					},
+					"ls_snowflake_pet_properties_typeProperties_role": {
+						"value": "[parameters('ls_snowflake_pet_properties_typeProperties_role')]"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}

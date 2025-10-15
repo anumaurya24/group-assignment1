@@ -1,0 +1,1144 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adf-petlicense-ananya"
+		},
+		"ls_snowflake_pet_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'ls_snowflake_pet'"
+		},
+		"kvpetlicenseananya_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://kvt-demodf.vault.azure.net/"
+		},
+		"ls_blob_pet_mi_sasUri": {
+			"type": "secureString",
+			"metadata": "Secure string for 'sasUri' of 'ls_blob_pet_mi'"
+		},
+		"ls_blob_team_pet_sasUri": {
+			"type": "secureString",
+			"metadata": "Secure string for 'sasUri' of 'ls_blob_team_pet'"
+		},
+		"ls_snowflake_pet_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "PET_LICENSE_DB"
+		},
+		"ls_snowflake_pet_properties_typeProperties_role": {
+			"type": "string",
+			"defaultValue": "DW_DEV_ROLE"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_csv_to_parquet')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Test_Snowflake_Query",
+						"description": "test",
+						"type": "Script",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "ls_snowflake_pet",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"insecureMode": "true"
+							}
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": "SELECT CURRENT_ACCOUNT() AS ACCOUNT_NAME,\n       CURRENT_REGION() AS REGION,\n       CURRENT_USER() AS USERNAME,\n       CURRENT_ROLE() AS ROLE,\n       CURRENT_WAREHOUSE() AS WAREHOUSE,\n       CURRENT_DATABASE() AS DATABASE,\n       CURRENT_SCHEMA() AS SCHEMA;\n\nSELECT COUNT(*) AS TOTAL_ROWS FROM PET_LICENSE_DB.DW.DATE_DIM;\n"
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-15T04:21:11Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_snowflake_pet')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_geo_to_stage')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "cp_pet_to_stage",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "SnowflakeV2Sink",
+								"preCopyScript": "DELETE FROM PET_LICENSE_DB.STAGE.STG_LOCATION_LKP;\n\n\n",
+								"importSettings": {
+									"type": "SnowflakeImportCopyCommand"
+								}
+							},
+							"enableStaging": true,
+							"stagingSettings": {
+								"linkedServiceName": {
+									"referenceName": "ls_blob_pet_mi",
+									"type": "LinkedServiceReference"
+								},
+								"path": "input"
+							},
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "zipcode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "ZIP_CODE",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "city",
+											"type": "String"
+										},
+										"sink": {
+											"name": "CITY_NAME",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "state",
+											"type": "String"
+										},
+										"sink": {
+											"name": "STATE_CODE",
+											"type": "String"
+										}
+									}
+								]
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_blob_geo_csv",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_sf_stage_loc_raw",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-15T02:06:31Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_blob_geo_csv')]",
+				"[concat(variables('factoryId'), '/datasets/ds_sf_stage_loc_raw')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_blob_pet_mi')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_pet_to_stage')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "cp_pet_to_stage",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "SnowflakeV2Sink",
+								"preCopyScript": "TRUNCATE TABLE PET_LICENSE_DB.STAGE.STG_PET_LICENSE;\n",
+								"importSettings": {
+									"type": "SnowflakeImportCopyCommand"
+								}
+							},
+							"enableStaging": true,
+							"stagingSettings": {
+								"linkedServiceName": {
+									"referenceName": "ls_blob_pet_mi",
+									"type": "LinkedServiceReference"
+								},
+								"path": "input"
+							},
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "License Issue Date",
+											"type": "String"
+										},
+										"sink": {
+											"name": "LICENSE_ISSUE_DATE",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "License Number",
+											"type": "String"
+										},
+										"sink": {
+											"name": "LICENSE_NUMBER",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "Animal's Name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "ANIMAL_NAME",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "Species",
+											"type": "String"
+										},
+										"sink": {
+											"name": "SPECIES",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "Primary Breed",
+											"type": "String"
+										},
+										"sink": {
+											"name": "PRIMARY_BREED",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "Secondary Breed",
+											"type": "String"
+										},
+										"sink": {
+											"name": "SECONDARY_BREED",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "ZIP Code",
+											"type": "String"
+										},
+										"sink": {
+											"name": "ZIP_CODE",
+											"type": "String"
+										}
+									}
+								]
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ls_blob_pet_csv",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_sf_stage_pet_raw",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-15T04:26:36Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ls_blob_pet_csv')]",
+				"[concat(variables('factoryId'), '/datasets/ds_sf_stage_pet_raw')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_blob_pet_mi')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_team_pet_csv_to_parquet')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "pl_stage_loads",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ls_blob_pet_csv",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_pet_parquet",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-10-15T00:17:29Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ls_blob_pet_csv')]",
+				"[concat(variables('factoryId'), '/datasets/ds_pet_parquet')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_blob_geo_csv')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_blob_pet_mi",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": "geo-data(in).csv",
+						"container": "input"
+					},
+					"columnDelimiter": ",",
+					"encodingName": "UTF-8",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "state_fips",
+						"type": "String"
+					},
+					{
+						"name": "state",
+						"type": "String"
+					},
+					{
+						"name": "state_abbr",
+						"type": "String"
+					},
+					{
+						"name": "zipcode",
+						"type": "String"
+					},
+					{
+						"name": "county",
+						"type": "String"
+					},
+					{
+						"name": "city",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_blob_pet_mi')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_pet_parquet')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_blob_pet_mi",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": "parquet",
+						"container": "input"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "License Issue Date",
+						"type": "String"
+					},
+					{
+						"name": "License Number",
+						"type": "String"
+					},
+					{
+						"name": "Animal's Name",
+						"type": "String"
+					},
+					{
+						"name": "Species",
+						"type": "String"
+					},
+					{
+						"name": "Primary Breed",
+						"type": "String"
+					},
+					{
+						"name": "Secondary Breed",
+						"type": "String"
+					},
+					{
+						"name": "ZIP Code",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_blob_pet_mi')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_sf_dw_breed')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_snowflake_pet",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"insecureMode": "true"
+					}
+				},
+				"annotations": [],
+				"type": "SnowflakeV2Table",
+				"schema": [
+					{
+						"name": "BREED_DIM_KEY",
+						"type": "NUMBER",
+						"precision": 38,
+						"scale": 0
+					},
+					{
+						"name": "SPECIES_NAME",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "PRIMARY_BREED",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "SECONDARY_BREED",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "NATURAL_KEY_HASH",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					}
+				],
+				"typeProperties": {
+					"schema": "DW",
+					"table": "BREED_DIM"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_snowflake_pet')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_sf_dw_fact')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_snowflake_pet",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"insecureMode": "true"
+					}
+				},
+				"annotations": [],
+				"type": "SnowflakeV2Table",
+				"schema": [
+					{
+						"name": "LICENSE_FACT_KEY",
+						"type": "NUMBER",
+						"precision": 38,
+						"scale": 0
+					},
+					{
+						"name": "DATE_KEY",
+						"type": "NUMBER",
+						"precision": 8,
+						"scale": 0
+					},
+					{
+						"name": "LOCATION_DIM_KEY",
+						"type": "NUMBER",
+						"precision": 38,
+						"scale": 0
+					},
+					{
+						"name": "BREED_DIM_KEY",
+						"type": "NUMBER",
+						"precision": 38,
+						"scale": 0
+					},
+					{
+						"name": "LICENSE_ID",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "PET_NAME",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "CNT",
+						"type": "NUMBER",
+						"precision": 38,
+						"scale": 0
+					}
+				],
+				"typeProperties": {
+					"schema": "DW",
+					"table": "PETLICENSE_FACT"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_snowflake_pet')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_sf_dw_location')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_snowflake_pet",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"insecureMode": "true"
+					}
+				},
+				"annotations": [],
+				"type": "SnowflakeV2Table",
+				"schema": [
+					{
+						"name": "LOCATION_DIM_KEY",
+						"type": "NUMBER",
+						"precision": 38,
+						"scale": 0
+					},
+					{
+						"name": "ZIP_CODE",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "CITY_NAME",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "STATE_CODE",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "COUNTRY_CODE",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "NATURAL_KEY_HASH",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					}
+				],
+				"typeProperties": {
+					"schema": "DW",
+					"table": "LOCATION_DIM"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_snowflake_pet')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_sf_stage_loc_raw')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_snowflake_pet",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"insecureMode": "true"
+					}
+				},
+				"annotations": [],
+				"type": "SnowflakeV2Table",
+				"schema": [
+					{
+						"name": "ZIP_CODE",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "CITY_NAME",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "STATE_CODE",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					}
+				],
+				"typeProperties": {
+					"schema": "STAGE",
+					"table": "STG_LOCATION_LKP"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_snowflake_pet')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_sf_stage_pet_raw')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_snowflake_pet",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"insecureMode": "true"
+					}
+				},
+				"annotations": [],
+				"type": "SnowflakeV2Table",
+				"schema": [
+					{
+						"name": "LICENSE_ISSUE_DATE",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "LICENSE_NUMBER",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "ANIMAL_NAME",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "SPECIES",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "PRIMARY_BREED",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "SECONDARY_BREED",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					},
+					{
+						"name": "ZIP_CODE",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
+					}
+				],
+				"typeProperties": {
+					"schema": "STAGE",
+					"table": "STG_PET_LICENSE"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_snowflake_pet')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_blob_pet_csv')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_blob_pet_mi",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": "Seattle_Pet_Licenses_20251014.csv",
+						"container": "input"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "License Issue Date",
+						"type": "String"
+					},
+					{
+						"name": "License Number",
+						"type": "String"
+					},
+					{
+						"name": "Animal's Name",
+						"type": "String"
+					},
+					{
+						"name": "Species",
+						"type": "String"
+					},
+					{
+						"name": "Primary Breed",
+						"type": "String"
+					},
+					{
+						"name": "Secondary Breed",
+						"type": "String"
+					},
+					{
+						"name": "ZIP Code",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_blob_pet_mi')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/kvpetlicenseananya')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureKeyVault",
+				"typeProperties": {
+					"baseUrl": "[parameters('kvpetlicenseananya_properties_typeProperties_baseUrl')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_blob_pet_mi')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"sasUri": "[parameters('ls_blob_pet_mi_sasUri')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_blob_team_pet')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"sasUri": "[parameters('ls_blob_team_pet_sasUri')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_snowflake_pet')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"parameters": {
+					"insecureMode": {
+						"type": "string",
+						"defaultValue": "true"
+					}
+				},
+				"annotations": [],
+				"type": "SnowflakeV2",
+				"typeProperties": {
+					"authenticationType": "Basic",
+					"accountIdentifier": "LXUTZNB-PAA86859",
+					"user": "dw_user",
+					"database": "[parameters('ls_snowflake_pet_properties_typeProperties_database')]",
+					"warehouse": "PET_WH",
+					"role": "[parameters('ls_snowflake_pet_properties_typeProperties_role')]",
+					"password": {
+						"type": "SecureString",
+						"value": "[parameters('ls_snowflake_pet_password')]"
+					}
+				},
+				"version": "1.1",
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AutoResolveIntegrationRuntime')]",
+			"type": "Microsoft.DataFactory/factories/integrationRuntimes",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "Managed",
+				"typeProperties": {
+					"computeProperties": {
+						"location": "AutoResolve",
+						"dataFlowProperties": {
+							"computeType": "General",
+							"coreCount": 8,
+							"timeToLive": 0
+						}
+					}
+				},
+				"managedVirtualNetwork": {
+					"type": "ManagedVirtualNetworkReference",
+					"referenceName": "default"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/managedVirtualNetworks/default')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/df_location_dim_upsert')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_sf_stage_loc_raw",
+								"type": "DatasetReference"
+							},
+							"name": "dflocationdimupsert"
+						},
+						{
+							"dataset": {
+								"referenceName": "ds_sf_stage_pet_raw",
+								"type": "DatasetReference"
+							},
+							"name": "dssfstagepetraw"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ds_sf_dw_location",
+								"type": "DatasetReference"
+							},
+							"name": "sink1"
+						},
+						{
+							"dataset": {
+								"referenceName": "ds_sf_stage_pet_raw",
+								"type": "DatasetReference"
+							},
+							"name": "sink2"
+						}
+					],
+					"transformations": [
+						{
+							"name": "dfbreeddimupsert"
+						},
+						{
+							"name": "derivebreedkeys"
+						},
+						{
+							"name": "alterRow"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          ZIP_CODE as string,",
+						"          CITY_NAME as string,",
+						"          STATE_CODE as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'table') ~> dflocationdimupsert",
+						"source(output(",
+						"          LICENSE_ISSUE_DATE as string,",
+						"          LICENSE_NUMBER as string,",
+						"          ANIMAL_NAME as string,",
+						"          SPECIES as string,",
+						"          PRIMARY_BREED as string,",
+						"          SECONDARY_BREED as string,",
+						"          ZIP_CODE as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'table') ~> dssfstagepetraw",
+						"dflocationdimupsert derive(ZIP_N = upper(trim(ZIP_CODE)),",
+						"          CITY_N = upper(trim(CITY_NAME)),",
+						"          STATE_N = iif(isNull(STATE_CODE) || trim(STATE_CODE) == '', 'WA', upper(trim(STATE_CODE))),",
+						"          NK_HASH = md5(concat(toString(ZIP_CODE),'|',toString(CITY_NAME),'|',toString(STATE_CODE)))) ~> dfbreeddimupsert",
+						"dssfstagepetraw derive(SPEC_N = upper(trim(SPECIES)),",
+						"          PB_N = upper(trim(PRIMARY_BREED)),",
+						"          SB_N = iif(isNull(SECONDARY_BREED) || trim(SECONDARY_BREED)=='' , 'UNKNOWN', upper(trim(SECONDARY_BREED))),",
+						"          NK_HASH = iif(isNull(SECONDARY_BREED) || trim(SECONDARY_BREED)=='' , 'UNKNOWN', upper(trim(SECONDARY_BREED)))) ~> derivebreedkeys",
+						"dfbreeddimupsert alterRow(upsertIf(true())) ~> alterRow",
+						"alterRow sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          LOCATION_DIM_KEY as decimal(38,0),",
+						"          ZIP_CODE as string,",
+						"          CITY_NAME as string,",
+						"          STATE_CODE as string,",
+						"          COUNTRY_CODE as string,",
+						"          NATURAL_KEY_HASH as string",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:true,",
+						"     upsertable:true,",
+						"     keys:['NATURAL_KEY_HASH'],",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     stageInsert: true,",
+						"     mapColumn(",
+						"          ZIP_CODE = ZIP_N,",
+						"          CITY_NAME = CITY_N,",
+						"          STATE_CODE = STATE_N,",
+						"          NATURAL_KEY_HASH = NK_HASH",
+						"     )) ~> sink1",
+						"derivebreedkeys sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          LICENSE_ISSUE_DATE as string,",
+						"          LICENSE_NUMBER as string,",
+						"          ANIMAL_NAME as string,",
+						"          SPECIES as string,",
+						"          PRIMARY_BREED as string,",
+						"          SECONDARY_BREED as string,",
+						"          ZIP_CODE as string",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     stageInsert: true,",
+						"     mapColumn(",
+						"          LICENSE_ISSUE_DATE,",
+						"          LICENSE_NUMBER,",
+						"          ANIMAL_NAME,",
+						"          SPECIES,",
+						"          PRIMARY_BREED,",
+						"          SECONDARY_BREED,",
+						"          ZIP_CODE",
+						"     )) ~> sink2"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_sf_stage_loc_raw')]",
+				"[concat(variables('factoryId'), '/datasets/ds_sf_stage_pet_raw')]",
+				"[concat(variables('factoryId'), '/datasets/ds_sf_dw_location')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/default')]",
+			"type": "Microsoft.DataFactory/factories/managedVirtualNetworks",
+			"apiVersion": "2018-06-01",
+			"properties": {},
+			"dependsOn": []
+		}
+	]
+}
