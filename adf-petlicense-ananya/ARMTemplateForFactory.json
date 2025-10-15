@@ -845,6 +845,12 @@
 						"type": "VARCHAR",
 						"precision": 0,
 						"scale": 0
+					},
+					{
+						"name": "CITY_NAME",
+						"type": "VARCHAR",
+						"precision": 0,
+						"scale": 0
 					}
 				],
 				"typeProperties": {
@@ -1140,7 +1146,8 @@
 						"          SPECIES as string,",
 						"          PRIMARY_BREED as string,",
 						"          SECONDARY_BREED as string,",
-						"          ZIP_CODE as string",
+						"          ZIP_CODE as string,",
+						"          CITY_NAME as string",
 						"     ),",
 						"     allowSchemaDrift: true,",
 						"     validateSchema: false,",
@@ -1207,7 +1214,8 @@
 						"          SPECIES as string,",
 						"          PRIMARY_BREED as string,",
 						"          SECONDARY_BREED as string,",
-						"          ZIP_CODE as string",
+						"          ZIP_CODE as string,",
+						"          CITY_NAME as string",
 						"     ),",
 						"     deletable:false,",
 						"     insertable:true,",
