@@ -23,24 +23,36 @@
 
 </div>
 
-This enterprise-grade data pipeline implements a **complete ETL solution** that:
+This enterprise-grade data pipeline implements a **complete ETL solution** that processes pet license data from CSV files stored in Azure Blob Storage, transforms it through staging tables, and loads it into a dimensional data warehouse in Snowflake.
 
-| 🎯 **Core Capabilities** | 📊 **Business Value** |
-|-------------------------|----------------------|
-| ✅ **Automated Data Ingestion** | 📈 Real-time pet license analytics |
-| ✅ **Data Quality Assurance** | 🎯 Accurate reporting and compliance |
-| ✅ **Dimensional Modeling** | 📊 Business intelligence and insights |
-| ✅ **Incremental Processing** | ⚡ Efficient resource utilization |
-| ✅ **Error Handling & Recovery** | 🛡️ Reliable data operations |
+### 🎯 **Core Capabilities**
+
+<div align="center">
+
+| **Capability** | **Description** | **Business Value** |
+|----------------|-----------------|-------------------|
+| 🔄 **Automated Data Ingestion** | CSV to Snowflake pipeline | 📈 Real-time pet license analytics |
+| 🎯 **Data Quality Assurance** | Built-in validation & cleansing | 🎯 Accurate reporting and compliance |
+| 📊 **Dimensional Modeling** | Star schema design | 📊 Business intelligence and insights |
+| ⚡ **Incremental Processing** | MERGE-based upserts | ⚡ Efficient resource utilization |
+| 🛡️ **Error Handling** | Comprehensive error recovery | 🛡️ Reliable data operations |
+
+</div>
 
 ### 🏆 **Key Features**
 
-- 🔄 **End-to-End Automation**: From CSV ingestion to dimensional warehouse loading
-- 🎯 **Data Quality Controls**: Built-in validation and cleansing mechanisms
-- 📊 **Dimensional Design**: Star schema with Location, Breed, and Date dimensions
-- ⚡ **Performance Optimized**: Staging, partitioning, and efficient data transfers
-- 🔒 **Enterprise Security**: Key Vault integration and role-based access control
-- 📈 **Scalable Architecture**: Handles growing data volumes seamlessly
+<div align="center">
+
+| **Feature** | **Implementation** |
+|-------------|-------------------|
+| 🔄 **End-to-End Automation** | CSV ingestion → Dimensional warehouse loading |
+| 🎯 **Data Quality Controls** | Validation and cleansing mechanisms |
+| 📊 **Dimensional Design** | Star schema with Location, Breed, and Date dimensions |
+| ⚡ **Performance Optimized** | Staging, partitioning, and efficient data transfers |
+| 🔒 **Enterprise Security** | Key Vault integration and role-based access control |
+| 📈 **Scalable Architecture** | Handles growing data volumes seamlessly |
+
+</div>
 
 ---
 
@@ -91,30 +103,21 @@ graph TB
 
 ## 🚀 Prerequisites & Setup
 
-<div align="center">
-
 ### 🛠️ **Required Resources Checklist**
 
+<div align="center">
+
+| **Category** | **Resource** | **Purpose** | **Status** |
+|--------------|--------------|-------------|------------|
+| ☁️ **Azure** | Data Factory (`adf-petlicense-ananya`) | ETL orchestration | ✅ Required |
+| ☁️ **Azure** | Blob Storage containers | Source data storage | ✅ Required |
+| ☁️ **Azure** | Key Vault (`kvpetlicenseananya`) | Credential management | ✅ Required |
+| ☁️ **Azure** | Managed Virtual Network | Network isolation | ✅ Required |
+| ❄️ **Snowflake** | Account (`LXUTZNB-PAA86859`) | Data warehouse platform | ✅ Required |
+| ❄️ **Snowflake** | Database (`PET_LICENSE_DB`) | Main data storage | ✅ Required |
+| ❄️ **Snowflake** | Warehouse (`PET_WH`) | Compute resources | ✅ Required |
+
 </div>
-
-### ☁️ **Azure Resources**
-
-| **Resource Type** | **Name/Instance** | **Purpose** | **Status** |
-|-------------------|------------------|-------------|------------|
-| 🏭 **Azure Data Factory** | `adf-petlicense-ananya` | ETL orchestration | ✅ Required |
-| 📁 **Azure Blob Storage** | Pet license containers | Source data storage | ✅ Required |
-| 🔐 **Azure Key Vault** | `kvpetlicenseananya` | Credential management | ✅ Required |
-| 🌐 **Managed Virtual Network** | `default` | Network isolation | ✅ Required |
-
-### ❄️ **Snowflake Configuration**
-
-| **Component** | **Value** | **Description** |
-|---------------|-----------|-----------------|
-| 🏢 **Account** | `LXUTZNB-PAA86859` | Snowflake account identifier |
-| 🗄️ **Database** | `PET_LICENSE_DB` | Main database for pet license data |
-| 🏭 **Warehouse** | `PET_WH` | Compute warehouse for processing |
-| 👤 **Role** | `PET_DW_ROLE` | Database role with DW permissions |
-| 👤 **User** | `dw_user` | Service account for ADF |
 
 ### 🔑 **Required Permissions**
 
@@ -133,11 +136,7 @@ graph TB
 
 ## 📁 Project Structure & Components
 
-<div align="center">
-
 ### 🗂️ **Repository Organization**
-
-</div>
 
 ```
 group-assignment1/
@@ -166,7 +165,7 @@ group-assignment1/
 └── 📋 publish_config.json              # Deployment Configuration
 ```
 
-### 📋 **Component Details**
+### 📋 **Component Summary**
 
 <div align="center">
 
@@ -184,9 +183,9 @@ group-assignment1/
 
 ## 🔄 Data Flow Process
 
-<div align="center">
-
 ### 🌊 **End-to-End Data Pipeline**
+
+<div align="center">
 
 ```mermaid
 flowchart LR
@@ -407,13 +406,9 @@ VALUES
 
 ## 🛠️ Deployment & Configuration
 
-<div align="center">
-
 ### 🚀 **Quick Start Guide**
 
-</div>
-
-### 📋 **Prerequisites Setup**
+#### 📋 **Prerequisites Setup**
 
 <div align="center">
 
@@ -428,7 +423,7 @@ az --version
 
 </div>
 
-### 🏭 **Azure Data Factory Deployment**
+#### 🏭 **Azure Data Factory Deployment**
 
 <div align="center">
 
@@ -452,7 +447,7 @@ az datafactory pipeline create \
 
 </div>
 
-### ❄️ **Snowflake Database Setup**
+#### ❄️ **Snowflake Database Setup**
 
 <div align="center">
 
@@ -502,13 +497,9 @@ GRANT ALL ON SCHEMA PET_LICENSE_DB.DW TO ROLE PET_DW_ROLE;
 
 ## 📊 Monitoring & Operations
 
-<div align="center">
-
 ### 📈 **Operational Excellence Dashboard**
 
-</div>
-
-### 🎯 **Key Performance Indicators (KPIs)**
+#### 🎯 **Key Performance Indicators (KPIs)**
 
 <div align="center">
 
@@ -522,19 +513,17 @@ GRANT ALL ON SCHEMA PET_LICENSE_DB.DW TO ROLE PET_DW_ROLE;
 
 </div>
 
-### 🔍 **Monitoring Tools & Methods**
+#### 🔍 **Monitoring Tools & Methods**
 
-#### 🏭 **Azure Data Factory Monitoring**
-- **Pipeline Runs**: Monitor execution status and duration
-- **Activity Logs**: Track individual activity performance
-- **Error Handling**: Review failed activities and retry logic
-- **Resource Usage**: Monitor integration runtime utilization
+<div align="center">
 
-#### ❄️ **Snowflake Monitoring**
-- **Query History**: Track SQL execution performance
-- **Warehouse Usage**: Monitor compute resource consumption
-- **Data Quality**: Validate record counts and data integrity
-- **Storage Metrics**: Track table growth and storage usage
+| **Tool** | **Purpose** | **Key Metrics** |
+|----------|-------------|-----------------|
+| 🏭 **Azure Data Factory** | Pipeline orchestration | Execution status, duration, resource usage |
+| ❄️ **Snowflake** | Data warehouse | Query performance, warehouse usage, data quality |
+| 📊 **Query History** | Performance analysis | Execution time, rows produced, error tracking |
+
+</div>
 
 ### 📊 **Essential Monitoring Queries**
 
@@ -588,13 +577,7 @@ ORDER BY EXECUTION_TIME DESC;
 
 ## 🔒 Security & Compliance
 
-<div align="center">
-
 ### 🛡️ **Security Framework**
-
-</div>
-
-### 🔐 **Data Protection**
 
 <div align="center">
 
@@ -610,73 +593,17 @@ ORDER BY EXECUTION_TIME DESC;
 
 ### 📋 **Compliance Checklist**
 
-- ✅ **Data Encryption**: All data encrypted in transit and at rest
-- ✅ **Access Logging**: Complete audit trail of all data access
-- ✅ **PII Protection**: Pet license data handled per privacy policies
-- ✅ **Backup & Recovery**: Automated backup and disaster recovery
-- ✅ **Security Monitoring**: Continuous security monitoring and alerting
-
----
-
-## 📞 Support & Resources
-
 <div align="center">
 
-### 🆘 **Getting Help**
+| **Requirement** | **Status** | **Implementation** |
+|-----------------|------------|-------------------|
+| ✅ **Data Encryption** | Compliant | All data encrypted in transit and at rest |
+| ✅ **Access Logging** | Compliant | Complete audit trail of all data access |
+| ✅ **PII Protection** | Compliant | Pet license data handled per privacy policies |
+| ✅ **Backup & Recovery** | Compliant | Automated backup and disaster recovery |
+| ✅ **Security Monitoring** | Compliant | Continuous security monitoring and alerting |
 
 </div>
-
-### 📚 **Documentation Resources**
-
-<div align="center">
-
-| **Resource** | **Purpose** | **Link** |
-|--------------|-------------|----------|
-| 📖 **Azure Data Factory Docs** | Official ADF documentation | [Microsoft Docs](https://docs.microsoft.com/en-us/azure/data-factory/) |
-| ❄️ **Snowflake Documentation** | Snowflake best practices | [Snowflake Docs](https://docs.snowflake.com/) |
-| 🔐 **Azure Security Center** | Security best practices | [Azure Security](https://docs.microsoft.com/en-us/azure/security/) |
-| 📊 **Data Engineering Patterns** | ETL/ELT patterns | [Data Engineering Guide](https://www.oreilly.com/library/view/fundamentals-of-data/9781492044297/) |
-
-</div>
-
-### 👥 **Support Channels**
-
-<div align="center">
-
-| **Issue Severity** | **Response Time** | **Contact Method** |
-|-------------------|------------------|-------------------|
-| 🔴 **Critical** | < 1 hour | Teams + Phone call |
-| 🟡 **High** | < 4 hours | Teams notification |
-| 🟠 **Medium** | < 24 hours | Email support |
-| 🔵 **Low** | < 72 hours | Documentation review |
-
-</div>
-
-### 🎯 **Escalation Process**
-
-1. **Level 1**: Check troubleshooting guide and documentation
-2. **Level 2**: Contact data engineering team via Teams
-3. **Level 3**: Escalate to platform engineering team
-4. **Level 4**: Engage Microsoft/Azure support (for Azure issues)
-
----
-
-<div align="center">
-
-## 🎉 **Project Status**
-
-![Project Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=for-the-badge)
-![Version](https://img.shields.io/badge/Version-1.0-blue?style=for-the-badge)
-![Last Updated](https://img.shields.io/badge/Last%20Updated-October%202024-orange?style=for-the-badge)
-
-### 📊 **Project Metrics**
-
-| **Metric** | **Value** | **Status** |
-|------------|-----------|------------|
-| 🏭 **Pipelines** | 4 Active | ✅ Operational |
-| 📊 **Datasets** | 8 Configured | ✅ Ready |
-| 🔗 **Linked Services** | 4 Connected | ✅ Tested |
-| 📈 **Success Rate** | 99.2% | ✅ Excellent |
 
 ---
 
