@@ -63,17 +63,12 @@ graph TB
         E --> F[⭐ Fact Layer<br/>PETLICENSE_FACT]
     end
     
-    subgraph "📊 Business Intelligence"
-        F --> G[📈 Analytics & Reporting<br/>Power BI / Tableau]
-    end
-    
     style A fill:#e1f5fe
     style B fill:#f3e5f5
     style C fill:#fff3e0
     style D fill:#e8f5e8
     style E fill:#fff8e1
     style F fill:#fce4ec
-    style G fill:#f1f8e9
 ```
 
 </div>
@@ -89,7 +84,6 @@ graph TB
 | 📊 **Staging Layer** | Data validation | Snowflake | STG_PET_LICENSE, STG_LOCATION_LKP |
 | 📋 **Dimension Layer** | Business entities | Snowflake | LOCATION_DIM, BREED_DIM, DATE_DIM |
 | ⭐ **Fact Layer** | Business metrics | Snowflake | PETLICENSE_FACT |
-| 📈 **Analytics Layer** | Business intelligence | Power BI/Tableau | Reports, dashboards |
 
 </div>
 
@@ -200,14 +194,12 @@ flowchart LR
     B --> C[📊 Staging Layer<br/>STG_PET_LICENSE<br/>STG_LOCATION_LKP]
     C --> D[📋 Dimension Loading<br/>Location, Breed, Date]
     D --> E[⭐ Fact Table<br/>PETLICENSE_FACT]
-    E --> F[📈 Analytics<br/>Reports & Dashboards]
     
     style A fill:#e3f2fd
     style B fill:#f3e5f5
     style C fill:#e8f5e8
     style D fill:#fff8e1
     style E fill:#fce4ec
-    style F fill:#f1f8e9
 ```
 
 </div>
