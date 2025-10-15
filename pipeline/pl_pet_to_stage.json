@@ -52,18 +52,30 @@
 						"type": "TabularTranslator",
 						"mappings": [
 							{
+								"source": {
+									"name": "License Issue Date",
+									"type": "String"
+								},
 								"sink": {
 									"name": "LICENSE_ISSUE_DATE",
 									"type": "String"
 								}
 							},
 							{
+								"source": {
+									"name": "License Number",
+									"type": "String"
+								},
 								"sink": {
 									"name": "LICENSE_NUMBER",
 									"type": "String"
 								}
 							},
 							{
+								"source": {
+									"name": "Animal's Name",
+									"type": "String"
+								},
 								"sink": {
 									"name": "ANIMAL_NAME",
 									"type": "String"
@@ -80,26 +92,32 @@
 								}
 							},
 							{
+								"source": {
+									"name": "Primary Breed",
+									"type": "String"
+								},
 								"sink": {
 									"name": "PRIMARY_BREED",
 									"type": "String"
 								}
 							},
 							{
+								"source": {
+									"name": "Secondary Breed",
+									"type": "String"
+								},
 								"sink": {
 									"name": "SECONDARY_BREED",
 									"type": "String"
 								}
 							},
 							{
+								"source": {
+									"name": "ZIP Code",
+									"type": "String"
+								},
 								"sink": {
 									"name": "ZIP_CODE",
-									"type": "String"
-								}
-							},
-							{
-								"sink": {
-									"name": "CITY_NAME",
 									"type": "String"
 								}
 							}
@@ -108,7 +126,7 @@
 				},
 				"inputs": [
 					{
-						"referenceName": "ls_blob_pet_csv",
+						"referenceName": "ds_pet_parquet",
 						"type": "DatasetReference"
 					}
 				],
