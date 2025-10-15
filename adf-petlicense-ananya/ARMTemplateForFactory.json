@@ -26,10 +26,6 @@
 		"ls_snowflake_pet_properties_typeProperties_database": {
 			"type": "string",
 			"defaultValue": "PET_LICENSE_DB"
-		},
-		"ls_snowflake_pet_properties_typeProperties_role": {
-			"type": "string",
-			"defaultValue": "DW_DEV_ROLE"
 		}
 	},
 	"variables": {
@@ -987,7 +983,6 @@
 					"user": "dw_user",
 					"database": "[parameters('ls_snowflake_pet_properties_typeProperties_database')]",
 					"warehouse": "PET_WH",
-					"role": "[parameters('ls_snowflake_pet_properties_typeProperties_role')]",
 					"password": {
 						"type": "SecureString",
 						"value": "[parameters('ls_snowflake_pet_password')]"
@@ -1131,7 +1126,8 @@
 						"          SPECIES as string,",
 						"          PRIMARY_BREED as string,",
 						"          SECONDARY_BREED as string,",
-						"          ZIP_CODE as string",
+						"          ZIP_CODE as string,",
+						"          CITY_NAME as string",
 						"     ),",
 						"     allowSchemaDrift: true,",
 						"     validateSchema: false,",

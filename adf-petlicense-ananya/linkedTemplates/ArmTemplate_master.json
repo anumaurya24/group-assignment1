@@ -27,10 +27,6 @@
 			"type": "string",
 			"defaultValue": "PET_LICENSE_DB"
 		},
-		"ls_snowflake_pet_properties_typeProperties_role": {
-			"type": "string",
-			"defaultValue": "DW_DEV_ROLE"
-		},
 		"containerUri": {
 			"type": "string",
 			"metadata": "URI to storage account containing linked ARM templates"
@@ -72,9 +68,6 @@
 					},
 					"ls_snowflake_pet_properties_typeProperties_database": {
 						"value": "[parameters('ls_snowflake_pet_properties_typeProperties_database')]"
-					},
-					"ls_snowflake_pet_properties_typeProperties_role": {
-						"value": "[parameters('ls_snowflake_pet_properties_typeProperties_role')]"
 					}
 				}
 			},

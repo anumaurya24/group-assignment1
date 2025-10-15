@@ -20,9 +20,6 @@
 		"ls_snowflake_pet_properties_typeProperties_database": {
 			"value": "PET_LICENSE_DB"
 		},
-		"ls_snowflake_pet_properties_typeProperties_role": {
-			"value": "DW_DEV_ROLE"
-		},
 		"containerUri": {
 			"value": ""
 		},
