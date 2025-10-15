@@ -52,6 +52,12 @@
 				"type": "VARCHAR",
 				"precision": 0,
 				"scale": 0
+			},
+			{
+				"name": "CITY_NAME",
+				"type": "VARCHAR",
+				"precision": 0,
+				"scale": 0
 			}
 		],
 		"typeProperties": {
