@@ -1,0 +1,135 @@
+{
+	"name": "df_location_dim_upsert",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_sf_stage_loc_raw",
+						"type": "DatasetReference"
+					},
+					"name": "dflocationdimupsert"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_sf_stage_pet_raw",
+						"type": "DatasetReference"
+					},
+					"name": "dssfstagepetraw"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_sf_dw_location",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_sf_stage_pet_raw",
+						"type": "DatasetReference"
+					},
+					"name": "sink2"
+				}
+			],
+			"transformations": [
+				{
+					"name": "dfbreeddimupsert"
+				},
+				{
+					"name": "derivebreedkeys"
+				},
+				{
+					"name": "alterRow"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          ZIP_CODE as string,",
+				"          CITY_NAME as string,",
+				"          STATE_CODE as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'table') ~> dflocationdimupsert",
+				"source(output(",
+				"          LICENSE_ISSUE_DATE as string,",
+				"          LICENSE_NUMBER as string,",
+				"          ANIMAL_NAME as string,",
+				"          SPECIES as string,",
+				"          PRIMARY_BREED as string,",
+				"          SECONDARY_BREED as string,",
+				"          ZIP_CODE as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'table') ~> dssfstagepetraw",
+				"dflocationdimupsert derive(ZIP_N = upper(trim(ZIP_CODE)),",
+				"          CITY_N = upper(trim(CITY_NAME)),",
+				"          STATE_N = iif(isNull(STATE_CODE) || trim(STATE_CODE) == '', 'WA', upper(trim(STATE_CODE))),",
+				"          NK_HASH = md5(concat(toString(ZIP_CODE),'|',toString(CITY_NAME),'|',toString(STATE_CODE)))) ~> dfbreeddimupsert",
+				"dssfstagepetraw derive(SPEC_N = upper(trim(SPECIES)),",
+				"          PB_N = upper(trim(PRIMARY_BREED)),",
+				"          SB_N = iif(isNull(SECONDARY_BREED) || trim(SECONDARY_BREED)=='' , 'UNKNOWN', upper(trim(SECONDARY_BREED))),",
+				"          NK_HASH = iif(isNull(SECONDARY_BREED) || trim(SECONDARY_BREED)=='' , 'UNKNOWN', upper(trim(SECONDARY_BREED)))) ~> derivebreedkeys",
+				"dfbreeddimupsert alterRow(upsertIf(true())) ~> alterRow",
+				"alterRow sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          LOCATION_DIM_KEY as decimal(38,0),",
+				"          ZIP_CODE as string,",
+				"          CITY_NAME as string,",
+				"          STATE_CODE as string,",
+				"          COUNTRY_CODE as string,",
+				"          NATURAL_KEY_HASH as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:true,",
+				"     upsertable:true,",
+				"     keys:['NATURAL_KEY_HASH'],",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     stageInsert: true,",
+				"     mapColumn(",
+				"          ZIP_CODE = ZIP_N,",
+				"          CITY_NAME = CITY_N,",
+				"          STATE_CODE = STATE_N,",
+				"          NATURAL_KEY_HASH = NK_HASH",
+				"     )) ~> sink1",
+				"derivebreedkeys sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          LICENSE_ISSUE_DATE as string,",
+				"          LICENSE_NUMBER as string,",
+				"          ANIMAL_NAME as string,",
+				"          SPECIES as string,",
+				"          PRIMARY_BREED as string,",
+				"          SECONDARY_BREED as string,",
+				"          ZIP_CODE as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     stageInsert: true,",
+				"     mapColumn(",
+				"          LICENSE_ISSUE_DATE,",
+				"          LICENSE_NUMBER,",
+				"          ANIMAL_NAME,",
+				"          SPECIES,",
+				"          PRIMARY_BREED,",
+				"          SECONDARY_BREED,",
+				"          ZIP_CODE",
+				"     )) ~> sink2"
+			]
+		}
+	}
+}

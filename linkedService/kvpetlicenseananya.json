@@ -1,0 +1,11 @@
+{
+	"name": "kvpetlicenseananya",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureKeyVault",
+		"typeProperties": {
+			"baseUrl": "https://kvt-demodf.vault.azure.net/"
+		}
+	}
+}

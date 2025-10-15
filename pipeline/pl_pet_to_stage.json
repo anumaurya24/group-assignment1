@@ -1,0 +1,138 @@
+{
+	"name": "pl_pet_to_stage",
+	"properties": {
+		"activities": [
+			{
+				"name": "cp_pet_to_stage",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobStorageReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"sink": {
+						"type": "SnowflakeV2Sink",
+						"preCopyScript": "TRUNCATE TABLE PET_LICENSE_DB.STAGE.STG_PET_LICENSE;\n",
+						"importSettings": {
+							"type": "SnowflakeImportCopyCommand"
+						}
+					},
+					"enableStaging": true,
+					"stagingSettings": {
+						"linkedServiceName": {
+							"referenceName": "ls_blob_pet_mi",
+							"type": "LinkedServiceReference"
+						},
+						"path": "input"
+					},
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "License Issue Date",
+									"type": "String"
+								},
+								"sink": {
+									"name": "LICENSE_ISSUE_DATE",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "License Number",
+									"type": "String"
+								},
+								"sink": {
+									"name": "LICENSE_NUMBER",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Animal's Name",
+									"type": "String"
+								},
+								"sink": {
+									"name": "ANIMAL_NAME",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Species",
+									"type": "String"
+								},
+								"sink": {
+									"name": "SPECIES",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Primary Breed",
+									"type": "String"
+								},
+								"sink": {
+									"name": "PRIMARY_BREED",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Secondary Breed",
+									"type": "String"
+								},
+								"sink": {
+									"name": "SECONDARY_BREED",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "ZIP Code",
+									"type": "String"
+								},
+								"sink": {
+									"name": "ZIP_CODE",
+									"type": "String"
+								}
+							}
+						]
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ls_blob_pet_csv",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_sf_stage_pet_raw",
+						"type": "DatasetReference"
+					}
+				]
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2025-10-15T04:26:36Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

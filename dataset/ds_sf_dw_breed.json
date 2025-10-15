@@ -1,0 +1,51 @@
+{
+	"name": "ds_sf_dw_breed",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_snowflake_pet",
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"insecureMode": "true"
+			}
+		},
+		"annotations": [],
+		"type": "SnowflakeV2Table",
+		"schema": [
+			{
+				"name": "BREED_DIM_KEY",
+				"type": "NUMBER",
+				"precision": 38,
+				"scale": 0
+			},
+			{
+				"name": "SPECIES_NAME",
+				"type": "VARCHAR",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "PRIMARY_BREED",
+				"type": "VARCHAR",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "SECONDARY_BREED",
+				"type": "VARCHAR",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "NATURAL_KEY_HASH",
+				"type": "VARCHAR",
+				"precision": 0,
+				"scale": 0
+			}
+		],
+		"typeProperties": {
+			"schema": "DW",
+			"table": "BREED_DIM"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

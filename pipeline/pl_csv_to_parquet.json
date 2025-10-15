@@ -1,0 +1,40 @@
+{
+	"name": "pl_csv_to_parquet",
+	"properties": {
+		"activities": [
+			{
+				"name": "Test_Snowflake_Query",
+				"description": "test",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_snowflake_pet",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"insecureMode": "true"
+					}
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "SELECT CURRENT_ACCOUNT() AS ACCOUNT_NAME,\n       CURRENT_REGION() AS REGION,\n       CURRENT_USER() AS USERNAME,\n       CURRENT_ROLE() AS ROLE,\n       CURRENT_WAREHOUSE() AS WAREHOUSE,\n       CURRENT_DATABASE() AS DATABASE,\n       CURRENT_SCHEMA() AS SCHEMA;\n\nSELECT COUNT(*) AS TOTAL_ROWS FROM PET_LICENSE_DB.DW.DATE_DIM;\n"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2025-10-15T04:21:11Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

@@ -1,0 +1,53 @@
+{
+	"name": "ds_pet_parquet",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_blob_pet_mi",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"fileName": "parquet",
+				"container": "input"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": [
+			{
+				"name": "License Issue Date",
+				"type": "String"
+			},
+			{
+				"name": "License Number",
+				"type": "String"
+			},
+			{
+				"name": "Animal's Name",
+				"type": "String"
+			},
+			{
+				"name": "Species",
+				"type": "String"
+			},
+			{
+				"name": "Primary Breed",
+				"type": "String"
+			},
+			{
+				"name": "Secondary Breed",
+				"type": "String"
+			},
+			{
+				"name": "ZIP Code",
+				"type": "String"
+			}
+		]
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

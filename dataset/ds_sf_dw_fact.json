@@ -1,0 +1,63 @@
+{
+	"name": "ds_sf_dw_fact",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_snowflake_pet",
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"insecureMode": "true"
+			}
+		},
+		"annotations": [],
+		"type": "SnowflakeV2Table",
+		"schema": [
+			{
+				"name": "LICENSE_FACT_KEY",
+				"type": "NUMBER",
+				"precision": 38,
+				"scale": 0
+			},
+			{
+				"name": "DATE_KEY",
+				"type": "NUMBER",
+				"precision": 8,
+				"scale": 0
+			},
+			{
+				"name": "LOCATION_DIM_KEY",
+				"type": "NUMBER",
+				"precision": 38,
+				"scale": 0
+			},
+			{
+				"name": "BREED_DIM_KEY",
+				"type": "NUMBER",
+				"precision": 38,
+				"scale": 0
+			},
+			{
+				"name": "LICENSE_ID",
+				"type": "VARCHAR",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "PET_NAME",
+				"type": "VARCHAR",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "CNT",
+				"type": "NUMBER",
+				"precision": 38,
+				"scale": 0
+			}
+		],
+		"typeProperties": {
+			"schema": "DW",
+			"table": "PETLICENSE_FACT"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

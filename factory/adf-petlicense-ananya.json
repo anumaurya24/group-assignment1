@@ -1,0 +1,9 @@
+{
+	"name": "adf-petlicense-ananya",
+	"location": "eastus2",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "736b01ac-0db9-4a93-b3b9-c63235466cb1",
+		"tenantId": "a8eec281-aaa3-4dae-ac9b-9a398b9215e7"
+	}
+}

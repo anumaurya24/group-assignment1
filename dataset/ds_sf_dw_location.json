@@ -1,0 +1,57 @@
+{
+	"name": "ds_sf_dw_location",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_snowflake_pet",
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"insecureMode": "true"
+			}
+		},
+		"annotations": [],
+		"type": "SnowflakeV2Table",
+		"schema": [
+			{
+				"name": "LOCATION_DIM_KEY",
+				"type": "NUMBER",
+				"precision": 38,
+				"scale": 0
+			},
+			{
+				"name": "ZIP_CODE",
+				"type": "VARCHAR",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "CITY_NAME",
+				"type": "VARCHAR",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "STATE_CODE",
+				"type": "VARCHAR",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "COUNTRY_CODE",
+				"type": "VARCHAR",
+				"precision": 0,
+				"scale": 0
+			},
+			{
+				"name": "NATURAL_KEY_HASH",
+				"type": "VARCHAR",
+				"precision": 0,
+				"scale": 0
+			}
+		],
+		"typeProperties": {
+			"schema": "DW",
+			"table": "LOCATION_DIM"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
