@@ -8,7 +8,7 @@
 
 **A comprehensive Azure Data Factory solution for processing pet license data from CSV files into a dimensional data warehouse in Snowflake**
 
-[🚀 Quick Start](#-quick-start) • [📖 Documentation](#-documentation) • [🔧 Configuration](#-configuration) • [📊 Monitoring](#-monitoring) • [🆘 Support](#-support)
+
 
 </div>
 
