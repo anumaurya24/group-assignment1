@@ -19,6 +19,9 @@
 		},
 		"ls_snowflake_pet_properties_typeProperties_database": {
 			"value": "PET_LICENSE_DB"
+		},
+		"ls_snowflake_pet_properties_typeProperties_role": {
+			"value": "PET_DW_ROLE"
 		}
 	}
 }

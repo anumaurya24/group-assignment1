@@ -26,6 +26,10 @@
 		"ls_snowflake_pet_properties_typeProperties_database": {
 			"type": "string",
 			"defaultValue": "PET_LICENSE_DB"
+		},
+		"ls_snowflake_pet_properties_typeProperties_role": {
+			"type": "string",
+			"defaultValue": "PET_DW_ROLE"
 		}
 	},
 	"variables": {
@@ -134,6 +138,7 @@
 					"user": "dw_user",
 					"database": "[parameters('ls_snowflake_pet_properties_typeProperties_database')]",
 					"warehouse": "PET_WH",
+					"role": "[parameters('ls_snowflake_pet_properties_typeProperties_role')]",
 					"password": {
 						"type": "SecureString",
 						"value": "[parameters('ls_snowflake_pet_password')]"
@@ -670,7 +675,7 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "cp_pet_to_stage",
+						"name": "cp_geo_to_stage",
 						"type": "Copy",
 						"dependsOn": [],
 						"policy": {
@@ -695,7 +700,7 @@
 							},
 							"sink": {
 								"type": "SnowflakeV2Sink",
-								"preCopyScript": "DELETE FROM PET_LICENSE_DB.STAGE.STG_LOCATION_LKP;\n\n\n",
+								"preCopyScript": "DELETE FROM PET_LICENSE_DB.STAGE.STG_LOCATION_LKP;\n\n\n\n",
 								"importSettings": {
 									"type": "SnowflakeImportCopyCommand"
 								}
@@ -781,14 +786,7 @@
 					{
 						"name": "cp_pet_to_stage",
 						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "Script1",
-								"dependencyConditions": [
-									"Skipped"
-								]
-							}
-						],
+						"dependsOn": [],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -902,7 +900,7 @@
 						},
 						"inputs": [
 							{
-								"referenceName": "ls_blob_pet_csv",
+								"referenceName": "ds_pet_parquet",
 								"type": "DatasetReference",
 								"parameters": {}
 							}
@@ -918,7 +916,14 @@
 					{
 						"name": "Script1",
 						"type": "Script",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "cp_pet_to_stage",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -938,7 +943,7 @@
 							"scripts": [
 								{
 									"type": "Query",
-									"text": "-- =========================================\n-- ADF Script Activity: DW Loads (PET project)\n-- =========================================\nUSE WAREHOUSE PET_WH;\nUSE DATABASE  PET_LICENSE_DB;\n\n-- =========================================\n-- 1) LOCATION_DIM upsert from STG_LOCATION_LKP  (fixed 2-char STATE)\n-- =========================================\nMERGE INTO DW.LOCATION_DIM D\nUSING (\n  SELECT\n    UPPER(TRIM(ZIP_CODE))  AS ZIP_N,\n    UPPER(TRIM(CITY_NAME)) AS CITY_N,\n    IFF(STATE_CODE IS NULL OR TRIM(STATE_CODE) = '',\n        'WA',\n        UPPER(SUBSTR(TRIM(STATE_CODE), 1, 2))\n    ) AS STATE_N,\n    'USA' AS COUNTRY_N,\n    MD5(\n      UPPER(TRIM(ZIP_CODE)) || '|' ||\n      UPPER(TRIM(CITY_NAME)) || '|' ||\n      IFF(STATE_CODE IS NULL OR TRIM(STATE_CODE) = '',\n          'WA',\n          UPPER(SUBSTR(TRIM(STATE_CODE), 1, 2))\n      )\n    ) AS NK_HASH\n  FROM STAGE.STG_LOCATION_LKP\n  WHERE ZIP_CODE IS NOT NULL\n) S\nON D.NATURAL_KEY_HASH = S.NK_HASH\nWHEN MATCHED THEN UPDATE SET\n  D.ZIP_CODE      = S.ZIP_N,\n  D.CITY_NAME     = S.CITY_N,\n  D.STATE_CODE    = S.STATE_N,\n  D.COUNTRY_CODE  = S.COUNTRY_N\nWHEN NOT MATCHED THEN INSERT\n  (ZIP_CODE, CITY_NAME, STATE_CODE, COUNTRY_CODE, NATURAL_KEY_HASH)\nVALUES\n  (S.ZIP_N, S.CITY_N, S.STATE_N, S.COUNTRY_N, S.NK_HASH);\n\n-- =========================================\n-- 2) BREED_DIM upsert from STG_PET_LICENSE\n-- =========================================\nMERGE INTO DW.BREED_DIM D\nUSING (\n  SELECT\n    UPPER(TRIM(SPECIES))                                      AS SPEC_N,\n    UPPER(TRIM(PRIMARY_BREED))                                AS PB_N,\n    IFF(SECONDARY_BREED IS NULL OR TRIM(SECONDARY_BREED) = '',\n        'UNKNOWN', UPPER(TRIM(SECONDARY_BREED)))              AS SB_N,\n    MD5(\n      UPPER(TRIM(SPECIES)) || '|' ||\n      UPPER(TRIM(PRIMARY_BREED)) || '|' ||\n      IFF(SECONDARY_BREED IS NULL OR TRIM(SECONDARY_BREED) = '',\n          'UNKNOWN', UPPER(TRIM(SECONDARY_BREED)))\n    )                                                         AS NK_HASH\n  FROM STAGE.STG_PET_LICENSE\n) S\nON D.NATURAL_KEY_HASH = S.NK_HASH\nWHEN MATCHED THEN UPDATE SET\n  D.SPECIES_NAME    = S.SPEC_N,\n  D.PRIMARY_BREED   = S.PB_N,\n  D.SECONDARY_BREED = S.SB_N\nWHEN NOT MATCHED THEN INSERT\n  (SPECIES_NAME, PRIMARY_BREED, SECONDARY_BREED, NATURAL_KEY_HASH)\nVALUES\n  (S.SPEC_N, S.PB_N, S.SB_N, S.NK_HASH);\n\n-- =========================================\n-- 3) DATE_DIM upsert (derived from staged issue dates)\n--    Adjust the TO_DATE format if your source differs.\n-- =========================================\nMERGE INTO DW.DATE_DIM T\nUSING (\n  SELECT\n    TO_NUMBER(TO_CHAR(D, 'YYYYMMDD')) AS DATE_KEY,\n    D                                 AS FULL_DATE,\n    YEAR(D)                           AS YEAR_NUM,\n    QUARTER(D)                        AS QUARTER_NUM,\n    MONTH(D)                          AS MONTH_NUM,\n    TRIM(TO_CHAR(D, 'Month'))         AS MONTH_NAME,\n    DAY(D)                            AS DAY_NUM\n  FROM (\n    SELECT DISTINCT TO_DATE(LICENSE_ISSUE_DATE, 'MM/DD/YYYY') AS D\n    FROM STAGE.STG_PET_LICENSE\n    WHERE LICENSE_ISSUE_DATE IS NOT NULL\n  )\n) S\nON T.DATE_KEY = S.DATE_KEY\nWHEN MATCHED THEN UPDATE SET\n  T.FULL_DATE   = S.FULL_DATE,\n  T.YEAR_NUM    = S.YEAR_NUM,\n  T.QUARTER_NUM = S.QUARTER_NUM,\n  T.MONTH_NUM   = S.MONTH_NUM,\n  T.MONTH_NAME  = S.MONTH_NAME,\n  T.DAY_NUM     = S.DAY_NUM\nWHEN NOT MATCHED THEN INSERT\n  (DATE_KEY, FULL_DATE, YEAR_NUM, QUARTER_NUM, MONTH_NUM, MONTH_NAME, DAY_NUM)\nVALUES\n  (S.DATE_KEY, S.FULL_DATE, S.YEAR_NUM, S.QUARTER_NUM, S.MONTH_NUM, S.MONTH_NAME, S.DAY_NUM);\n\n-- =========================================\n-- 4) FACT MERGE (idempotent on LICENSE_ID + DATE_KEY)\n-- =========================================\nMERGE INTO DW.PETLICENSE_FACT F\nUSING (\n  SELECT\n    S.LICENSE_NUMBER,\n    S.ANIMAL_NAME,\n    S.DATE_KEY,\n    L2.LOCATION_DIM_KEY,\n    B.BREED_DIM_KEY,\n    S.CNT\n  FROM (\n    SELECT\n      LICENSE_NUMBER,\n      ANIMAL_NAME,\n      TO_NUMBER(TO_CHAR(TO_DATE(LICENSE_ISSUE_DATE, 'MM/DD/YYYY'), 'YYYYMMDD')) AS DATE_KEY,\n      UPPER(TRIM(ZIP_CODE))                                                     AS ZIP_N,\n      MD5(\n        UPPER(TRIM(SPECIES)) || '|' ||\n        UPPER(TRIM(PRIMARY_BREED)) || '|' ||\n        IFF(SECONDARY_BREED IS NULL OR TRIM(SECONDARY_BREED) = '',\n            'UNKNOWN', UPPER(TRIM(SECONDARY_BREED)))\n      )                                                                         AS BREED_HASH,\n      1                                                                         AS CNT\n    FROM STAGE.STG_PET_LICENSE\n    WHERE LICENSE_NUMBER IS NOT NULL\n  ) S\n  JOIN DW.LOCATION_DIM L2\n    ON S.ZIP_N = UPPER(TRIM(L2.ZIP_CODE))\n  JOIN DW.BREED_DIM B\n    ON S.BREED_HASH = B.NATURAL_KEY_HASH\n) S\nON F.LICENSE_ID = S.LICENSE_NUMBER\n   AND F.DATE_KEY = S.DATE_KEY\nWHEN MATCHED THEN UPDATE SET\n  F.LOCATION_DIM_KEY = S.LOCATION_DIM_KEY,\n  F.BREED_DIM_KEY    = S.BREED_DIM_KEY,\n  F.PET_NAME         = S.ANIMAL_NAME,\n  F.CNT              = S.CNT\nWHEN NOT MATCHED THEN INSERT\n  (DATE_KEY, LOCATION_DIM_KEY, BREED_DIM_KEY, LICENSE_ID, PET_NAME, CNT)\nVALUES\n  (S.DATE_KEY, S.LOCATION_DIM_KEY, S.BREED_DIM_KEY, S.LICENSE_NUMBER, S.ANIMAL_NAME, S.CNT);\n"
+									"text": "-- =========================================\n-- ADF Script Activity: DW Loads (PET project)\n-- =========================================\nUSE WAREHOUSE PET_WH;\nUSE DATABASE  PET_LICENSE_DB;\n\n-- =========================================\n-- 1) LOCATION_DIM upsert (deduped on NK_HASH)\n-- =========================================\nMERGE INTO DW.LOCATION_DIM D\nUSING (\n  WITH src AS (\n    SELECT\n      UPPER(TRIM(ZIP_CODE))  AS ZIP_N,\n      UPPER(TRIM(CITY_NAME)) AS CITY_N,\n      IFF(STATE_CODE IS NULL OR TRIM(STATE_CODE) = '',\n          'WA',\n          UPPER(SUBSTR(TRIM(STATE_CODE), 1, 2))\n      ) AS STATE_N,\n      'USA' AS COUNTRY_N,\n      MD5(\n        UPPER(TRIM(ZIP_CODE)) || '|' ||\n        UPPER(TRIM(CITY_NAME)) || '|' ||\n        IFF(STATE_CODE IS NULL OR TRIM(STATE_CODE) = '',\n            'WA',\n            UPPER(SUBSTR(TRIM(STATE_CODE), 1, 2))\n        )\n      ) AS NK_HASH\n    FROM STAGE.STG_LOCATION_LKP\n    WHERE ZIP_CODE IS NOT NULL\n  ),\n  dedup AS (\n    SELECT *\n    FROM src\n    QUALIFY ROW_NUMBER() OVER (PARTITION BY NK_HASH ORDER BY ZIP_N, CITY_N, STATE_N) = 1\n  )\n  SELECT * FROM dedup\n) S\nON D.NATURAL_KEY_HASH = S.NK_HASH\nWHEN MATCHED THEN UPDATE SET\n  D.ZIP_CODE      = S.ZIP_N,\n  D.CITY_NAME     = S.CITY_N,\n  D.STATE_CODE    = S.STATE_N,\n  D.COUNTRY_CODE  = S.COUNTRY_N\nWHEN NOT MATCHED THEN INSERT\n  (ZIP_CODE, CITY_NAME, STATE_CODE, COUNTRY_CODE, NATURAL_KEY_HASH)\nVALUES\n  (S.ZIP_N, S.CITY_N, S.STATE_N, S.COUNTRY_N, S.NK_HASH);\n\n-- =========================================\n-- 2) BREED_DIM upsert (deduped on NK_HASH)\n-- =========================================\nMERGE INTO DW.BREED_DIM D\nUSING (\n  WITH src AS (\n    SELECT\n      UPPER(TRIM(SPECIES))        AS SPEC_N,\n      UPPER(TRIM(PRIMARY_BREED))  AS PB_N,\n      IFF(SECONDARY_BREED IS NULL OR TRIM(SECONDARY_BREED) = '',\n          'UNKNOWN', UPPER(TRIM(SECONDARY_BREED))) AS SB_N,\n      MD5(\n        UPPER(TRIM(SPECIES)) || '|' ||\n        UPPER(TRIM(PRIMARY_BREED)) || '|' ||\n        IFF(SECONDARY_BREED IS NULL OR TRIM(SECONDARY_BREED) = '',\n            'UNKNOWN', UPPER(TRIM(SECONDARY_BREED)))\n      ) AS NK_HASH\n    FROM STAGE.STG_PET_LICENSE\n  ),\n  dedup AS (\n    SELECT *\n    FROM src\n    QUALIFY ROW_NUMBER() OVER (PARTITION BY NK_HASH ORDER BY SPEC_N, PB_N, SB_N) = 1\n  )\n  SELECT * FROM dedup\n) S\nON D.NATURAL_KEY_HASH = S.NK_HASH\nWHEN MATCHED THEN UPDATE SET\n  D.SPECIES_NAME    = S.SPEC_N,\n  D.PRIMARY_BREED   = S.PB_N,\n  D.SECONDARY_BREED = S.SB_N\nWHEN NOT MATCHED THEN INSERT\n  (SPECIES_NAME, PRIMARY_BREED, SECONDARY_BREED, NATURAL_KEY_HASH)\nVALUES\n  (S.SPEC_N, S.PB_N, S.SB_N, S.NK_HASH);\n\n-- =========================================\n-- 3) DATE_DIM upsert (robust parser, deduped)\n-- =========================================\nMERGE INTO DW.DATE_DIM T\nUSING (\n  WITH parsed AS (\n    SELECT DISTINCT\n      COALESCE(\n        TRY_TO_DATE(TRIM(LICENSE_ISSUE_DATE), 'MM/DD/YYYY'),\n        TRY_TO_DATE(TRIM(LICENSE_ISSUE_DATE), 'YYYY-MM-DD'),\n        TRY_TO_DATE(TRIM(LICENSE_ISSUE_DATE), 'YYYY/MM/DD'),\n        TRY_TO_DATE(TRIM(LICENSE_ISSUE_DATE), 'Mon DD, YYYY'),\n        TRY_TO_DATE(TRIM(LICENSE_ISSUE_DATE), 'Month DD, YYYY'),\n        TRY_TO_DATE(TRIM(LICENSE_ISSUE_DATE), 'DD-Mon-YYYY'),\n        TRY_TO_DATE(TRIM(LICENSE_ISSUE_DATE), 'DD-MON-YYYY')\n      ) AS D\n    FROM STAGE.STG_PET_LICENSE\n    WHERE LICENSE_ISSUE_DATE IS NOT NULL\n  ),\n  dedup AS (\n    SELECT *\n    FROM parsed\n    WHERE D IS NOT NULL\n    QUALIFY ROW_NUMBER() OVER (PARTITION BY D ORDER BY D) = 1\n  )\n  SELECT\n    TO_NUMBER(TO_CHAR(D, 'YYYYMMDD')) AS DATE_KEY,\n    D                                 AS FULL_DATE,\n    YEAR(D)                           AS YEAR_NUM,\n    QUARTER(D)                        AS QUARTER_NUM,\n    MONTH(D)                          AS MONTH_NUM,\n    TRIM(TO_CHAR(D, 'Month'))         AS MONTH_NAME,\n    DAY(D)                            AS DAY_NUM\n  FROM dedup\n) S\nON T.DATE_KEY = S.DATE_KEY\nWHEN MATCHED THEN UPDATE SET\n  T.FULL_DATE   = S.FULL_DATE,\n  T.YEAR_NUM    = S.YEAR_NUM,\n  T.QUARTER_NUM = S.QUARTER_NUM,\n  T.MONTH_NUM   = S.MONTH_NUM,\n  T.MONTH_NAME  = S.MONTH_NAME,\n  T.DAY_NUM     = S.DAY_NUM\nWHEN NOT MATCHED THEN INSERT\n  (DATE_KEY, FULL_DATE, YEAR_NUM, QUARTER_NUM, MONTH_NUM, MONTH_NAME, DAY_NUM)\nVALUES\n  (S.DATE_KEY, S.FULL_DATE, S.YEAR_NUM, S.QUARTER_NUM, S.MONTH_NUM, S.MONTH_NAME, S.DAY_NUM);\n\n-- =========================================\n-- 4) FACT MERGE (robust date parse; joins to deduped dims)\n-- =========================================\nMERGE INTO DW.PETLICENSE_FACT F\nUSING (\n  WITH staged AS (\n    SELECT\n      LICENSE_NUMBER,\n      ANIMAL_NAME,\n      COALESCE(\n        TRY_TO_DATE(TRIM(LICENSE_ISSUE_DATE), 'MM/DD/YYYY'),\n        TRY_TO_DATE(TRIM(LICENSE_ISSUE_DATE), 'YYYY-MM-DD'),\n        TRY_TO_DATE(TRIM(LICENSE_ISSUE_DATE), 'YYYY/MM/DD'),\n        TRY_TO_DATE(TRIM(LICENSE_ISSUE_DATE), 'Mon DD, YYYY'),\n        TRY_TO_DATE(TRIM(LICENSE_ISSUE_DATE), 'Month DD, YYYY'),\n        TRY_TO_DATE(TRIM(LICENSE_ISSUE_DATE), 'DD-Mon-YYYY'),\n        TRY_TO_DATE(TRIM(LICENSE_ISSUE_DATE), 'DD-MON-YYYY')\n      ) AS ISSUE_DT,\n      UPPER(TRIM(ZIP_CODE)) AS ZIP_N,\n      MD5(\n        UPPER(TRIM(SPECIES)) || '|' ||\n        UPPER(TRIM(PRIMARY_BREED)) || '|' ||\n        IFF(SECONDARY_BREED IS NULL OR TRIM(SECONDARY_BREED) = '',\n            'UNKNOWN', UPPER(TRIM(SECONDARY_BREED)))\n      ) AS BREED_HASH\n    FROM STAGE.STG_PET_LICENSE\n    WHERE LICENSE_NUMBER IS NOT NULL\n  ),\n  valid AS (\n    SELECT *\n    FROM staged\n    WHERE ISSUE_DT IS NOT NULL\n  )\n  SELECT\n    v.LICENSE_NUMBER,\n    v.ANIMAL_NAME,\n    TO_NUMBER(TO_CHAR(v.ISSUE_DT, 'YYYYMMDD')) AS DATE_KEY,\n    l2.LOCATION_DIM_KEY,\n    b.BREED_DIM_KEY,\n    1 AS CNT\n  FROM valid v\n  JOIN DW.LOCATION_DIM l2\n    ON v.ZIP_N = UPPER(TRIM(l2.ZIP_CODE))\n  JOIN DW.BREED_DIM b\n    ON v.BREED_HASH = b.NATURAL_KEY_HASH\n) S\nON F.LICENSE_ID = S.LICENSE_NUMBER\n   AND F.DATE_KEY = S.DATE_KEY\nWHEN MATCHED THEN UPDATE SET\n  F.LOCATION_DIM_KEY = S.LOCATION_DIM_KEY,\n  F.BREED_DIM_KEY    = S.BREED_DIM_KEY,\n  F.PET_NAME         = S.ANIMAL_NAME,\n  F.CNT              = S.CNT\nWHEN NOT MATCHED THEN INSERT\n  (DATE_KEY, LOCATION_DIM_KEY, BREED_DIM_KEY, LICENSE_ID, PET_NAME, CNT)\nVALUES\n  (S.DATE_KEY, S.LOCATION_DIM_KEY, S.BREED_DIM_KEY, S.LICENSE_NUMBER, S.ANIMAL_NAME, S.CNT);"
 								}
 							],
 							"scriptBlockExecutionTimeout": "02:00:00"
@@ -952,7 +957,7 @@
 				"lastPublishTime": "2025-10-15T04:26:36Z"
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ls_blob_pet_csv')]",
+				"[concat(variables('factoryId'), '/datasets/ds_pet_parquet')]",
 				"[concat(variables('factoryId'), '/datasets/ds_sf_stage_pet_raw')]",
 				"[concat(variables('factoryId'), '/linkedServices/ls_snowflake_pet')]",
 				"[concat(variables('factoryId'), '/linkedServices/ls_blob_pet_mi')]"
@@ -1121,6 +1126,15 @@
 						},
 						{
 							"name": "BreedDim"
+						},
+						{
+							"name": "locnorm"
+						},
+						{
+							"name": "derivedfactcols"
+						},
+						{
+							"name": "derivedbreed"
 						}
 					],
 					"scriptLines": [
@@ -1201,17 +1215,55 @@
 						"      upper(trim(SECONDARY_BREED))\r",
 						"    )\r",
 						"  )\r",
-						")) ~> derivedcols",
-						"derivedcols, LOCATIONDIM join(derivedcols@ZIP_CODE == LOCATIONDIM@ZIP_CODE,",
-						"     joinType:'inner',",
+						"),",
+						"          SPEC_N = toString( upper( trim( byName('SPECIES') ) ) ),",
+						"          PB_N = toString( upper( trim( byName('PRIMARY_BREED') ) ) ),",
+						"          SB_N = toString( upper( trim( iif(isNull(byName('SECONDARY_BREED')), '', byName('SECONDARY_BREED')) ) ) )) ~> derivedcols",
+						"derivedfactcols, locnorm join({ZIP_N } == {ZIP_N_R },",
+						"     joinType:'left',",
 						"     matchType:'exact',",
 						"     ignoreSpaces: false,",
 						"     broadcast: 'auto')~> derivefactcols",
-						"derivefactcols, DIMBREED join(BREED_HASH == DIMBREED@NATURAL_KEY_HASH,",
+						"derivefactcols, derivedbreed join(derivedfactcols@BREED_HASH == derivedbreed@BREED_HASH,",
 						"     joinType:'inner',",
 						"     matchType:'exact',",
 						"     ignoreSpaces: false,",
 						"     broadcast: 'auto')~> BreedDim",
+						"LOCATIONDIM derive({ZIP_N_R } = toString(\r",
+						"  upper(\r",
+						"    trim(\r",
+						"      substring(\r",
+						"        replace(toString(byName('ZIP_CODE')),'-',''),\r",
+						"        1,5\r",
+						"      )\r",
+						"    )\r",
+						"  )\r",
+						")) ~> locnorm",
+						"derivedcols derive(DATE_KEY = toInteger(toString(toDate(byName('LICENSE_ISSUE_DATE'), 'yyyyMMdd'))),",
+						"          {SPEC_N } = toString(upper(trim(byName('SPECIES')))),",
+						"          {PB_N } = toString(upper(trim(byName('PRIMARY_BREED')))),",
+						"          {ZIP_N } = toString(                upper(trim(substring(replace(toString(byName('ZIP_CODE')),'-',''),1,5)))              ),",
+						"          {SB_N } = toString(upper(trim(byName('SECONDARY_BREED')))),",
+						"          BREED_HASH = md5(concat(SPEC_N,'|',PB_N,'|',SB_N)),",
+						"          LICENSE_ID = toString(byName('LICENSE_NUMBER')),",
+						"          PET_NAME = toString(byName('ANIMAL_NAME')),",
+						"          CNT = 1) ~> derivedfactcols",
+						"DIMBREED derive({SPEC_N } = upper(trim(toString(SPECIES_NAME))),",
+						"          PB_N = upper(trim(toString(PRIMARY_BREED))),",
+						"          {SB_N } = upper(trim(iif(isNull(SECONDARY_BREED) || trim(SECONDARY_BREED)=='' , 'UNKNOWN', SECONDARY_BREED))),",
+						"          BREED_HASH = md5(\r",
+						"  toString( upper(trim(byName('SPECIES_NAME'))) )\r",
+						"  + '|' +\r",
+						"  toString( upper(trim(byName('PRIMARY_BREED'))) )\r",
+						"  + '|' +\r",
+						"  toString(\r",
+						"    upper(\r",
+						"      trim(\r",
+						"        iif(isNull(byName('SECONDARY_BREED')), '', byName('SECONDARY_BREED'))\r",
+						"      )\r",
+						"    )\r",
+						"  )\r",
+						")) ~> derivedbreed",
 						"derivebreedkeys sink(allowSchemaDrift: true,",
 						"     validateSchema: false,",
 						"     input(",
