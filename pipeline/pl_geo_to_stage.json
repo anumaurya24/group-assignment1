@@ -3,7 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "cp_pet_to_stage",
+				"name": "cp_geo_to_stage",
 				"type": "Copy",
 				"dependsOn": [],
 				"policy": {
@@ -28,7 +28,7 @@
 					},
 					"sink": {
 						"type": "SnowflakeV2Sink",
-						"preCopyScript": "DELETE FROM PET_LICENSE_DB.STAGE.STG_LOCATION_LKP;\n\n\n",
+						"preCopyScript": "DELETE FROM PET_LICENSE_DB.STAGE.STG_LOCATION_LKP;\n\n\n\n",
 						"importSettings": {
 							"type": "SnowflakeImportCopyCommand"
 						}
